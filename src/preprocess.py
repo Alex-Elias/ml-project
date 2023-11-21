@@ -2,45 +2,46 @@ from sklearn.preprocessing import OrdinalEncoder
 import pandas as pd 
 import numpy as np
 
-def encode_data(data: pd.DataFrame):
+def generate_encoding(data: pd.DataFrame):
+    """
+        Generates ordinal encoding from given dataframe object.
+        Object must contain parentspecies column. This is applied
+        to the training data at the very beginning of the 
+        preprocessing. 
+        
+        Returns copy of the training data as pd.Dataframe and
+        the encoder which can be then used to apply encoding to
+        the testing data.
+    """
     enc = OrdinalEncoder(encoded_missing_value=-1)
     vals = data.loc[:, 'parentspecies'].values
     sp_values = enc.fit_transform(vals.reshape(-1, 1))
     
-    return sp_values
+    res = data.copy(deep=True)
+    res.loc[:, 'parentspecies'] = sp_values
 
-def process_data(data: pd.DataFrame, sp_values = None, istest = True):
-    X = data.loc[1:, data.columns != "pSat_Pa"].values
-    if not istest:
-        y = data.loc[1:, "pSat_Pa"].values
-    else:
-        y = None
-    rows = data.shape[0] - 1
+    return res, enc
 
-    str_clm_index = 0
-    for i, column in enumerate(X[0,:]):
-        if isinstance(column, str):
-            str_clm_index = i
+def apply_encoding(data: pd.DataFrame, encoder: OrdinalEncoder) -> pd.DataFrame:
+    """
+        Applies the given OrdinalEncoder to the data. After
+        the encoding has been generated, this function can be used
+        to apply the same encoding to the testing data.
+
+        Returns a copy of the input data with parentspecies column
+        altered using the given encoding.
+    """
+    res = data.copy(deep=True)
+    res.loc[:, 'parentspecies'] = encoder.transform(data
+                                                    .loc[:, 'parentspecies']
+                                                    .values.reshape(-1, 1))
+    return res
     
-    if not istest:
-        for row in range(rows):
-            X[row, str_clm_index] = sp_values[row]
-
-    return X, y
-    
-def read_data(file_name: str, istest=False):
+def read_data(file_name: str) -> pd.DataFrame:
     '''
-        Read data given the filename file_name. If data is testing
-        data, then it has no pSat_Pa column and encoding it unnecessary.
-        For training data, column "parentspecies" is encoded with missing values as
-        -1. In case of testing data, the function returns only one array of data. 
-        In case of training data, two arrays are returned: X, y.
+        Read datafile with the given file_name.
+        Returns pd.Dataframe object.
     '''
     dataframe = pd.read_csv("data/{}.csv".format(file_name))
-    
-    if not istest:
-        encode = encode_data(dataframe)
-        return process_data(dataframe, encode, istest)
-    else:
-        return process_data(dataframe, None, istest)
+    return dataframe
 
