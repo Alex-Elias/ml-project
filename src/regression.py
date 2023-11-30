@@ -25,6 +25,13 @@ def do_cv(models, X_train, y_train, m_keys):
         print("R2 scores: ", cv_scores[i]["test_r2"])
         print("Average: ", np.mean(cv_scores[i]["test_r2"]))
 
+def write_to_file(y_test, y_pred, file_name):
+    f = open(file_name, 'w')
+    f.write("Id,target\n")
+    for i in range(y_test.shape[0]):
+        f.write("{},{}\n".format(df_test.loc[i,"Id"], y_pred[i]))
+    f.close()
+
 df_train = read_data("train")
 df_test = read_data("test")
 
@@ -33,9 +40,9 @@ df_train = df_train.drop('Id',axis=1)
 edf_train, enc = generate_encoding(df_train) 
 edf_test = apply_encoding(df_test.drop('Id', axis=1), enc)
 
-X_train = edf_train.loc[:,edf_train.columns != 'pSat_Pa'].values
-y_train = np.log10(edf_train.loc[:, 'pSat_Pa'].values)
-y_test = edf_test.values
+X_train = edf_train.loc[:,edf_train.columns != 'pSat_Pa']
+y_train = np.log10(edf_train.loc[:, 'pSat_Pa'])
+y_test = edf_test
 
 #lr_model = LinearRegression()
 #dr_model = DummyRegressor(strategy='median')
@@ -48,10 +55,4 @@ rf_model = RandomForestRegressor(n_jobs=-1, n_estimators=250, random_state=2)
 
 predictor = rf_model.fit(X_train, y_train)
 y_pred = predictor.predict(y_test)
-
-f = open("predictions.csv", 'w')
-f.write("Id,target\n")
-for i in range(y_test.shape[0]):
-    f.write("{},{}\n".format(df_test.loc[i,"Id"], y_pred[i]))
-
-f.close()
+write_to_file(df_test, y_pred, "predictions.csv")
