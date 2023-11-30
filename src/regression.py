@@ -8,6 +8,23 @@ from sklearn.preprocessing import OrdinalEncoder
 from sklearn.metrics import r2_score as R2
 import matplotlib.pyplot as plt
 
+def do_cv(models, X_train, y_train, m_keys):
+    cv_scores = []
+
+    for model in models:
+        """ Perform 5-fold CV for all models in models list. """
+        score = cross_validate(model, 
+                            X_train, 
+                            y_train,
+                            scoring=('r2', 'neg_mean_squared_error'))
+        cv_scores.append(score)
+
+    # print models and corresponding r2 scores.
+    for i, model in enumerate(models):
+        print("Model: ", m_keys[i])
+        print("R2 scores: ", cv_scores[i]["test_r2"])
+
+
 df_train = read_data("train")
 df_test = read_data("test")
 
@@ -18,25 +35,13 @@ edf_train, enc = generate_encoding(df_train)
 edf_test = apply_encoding(df_test, enc)
 
 X_train = edf_train.loc[:,edf_train.columns != 'pSat_Pa'].values
-y_train = edf_train.loc[:, 'pSat_Pa'].values
+y_train = np.log(edf_train.loc[:, 'pSat_Pa'].values)
 
-lr_model = LinearRegression()
-dr_model = DummyRegressor(strategy='median')
-rf_model = RandomForestRegressor(n_jobs=-1)
+#lr_model = LinearRegression()
+#dr_model = DummyRegressor(strategy='median')
+rf_model = RandomForestRegressor(n_jobs=-1, n_estimators=250)
 
-models = [lr_model, dr_model, rf_model]
-m_keys = ['LR', 'Dummy', 'RF']
-cv_scores = []
 
-for model in models:
-    """ Perform 5-fold CV for all models in models list. """
-    score = cross_validate(model, 
-                           X_train, 
-                           y_train,
-                           scoring=('r2', 'neg_mean_squared_error'))
-    cv_scores.append(score)
-
-# print models and corresponding r2 scores.
-for i, model in enumerate(models):
-    print("Model: ", m_keys[i])
-    print("R2 scores: ", cv_scores[i]["test_r2"])
+models = [rf_model]
+m_keys = ['RF']
+do_cv(models, X_train, y_train, m_keys)
