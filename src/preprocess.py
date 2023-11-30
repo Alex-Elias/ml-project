@@ -42,6 +42,6 @@ def read_data(file_name: str) -> pd.DataFrame:
         Read datafile with the given file_name.
         Returns pd.Dataframe object.
     '''
-    dataframe = pd.read_csv("data/{}.csv".format(file_name))
+    dataframe = pd.read_csv("ml-project/data/{}.csv".format(file_name))
     return dataframe
 
