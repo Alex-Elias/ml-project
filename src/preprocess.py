@@ -16,9 +16,8 @@ def generate_encoding(data: pd.DataFrame):
     enc = OrdinalEncoder(encoded_missing_value=-1)
     vals = data.loc[:, 'parentspecies'].values
     sp_values = enc.fit_transform(vals.reshape(-1, 1))
-    
     res = data.copy(deep=True)
-    res.loc[:, 'parentspecies'] = sp_values
+    res.loc[:, 'parentspecies'] = sp_values[:,0]
 
     return res, enc
 

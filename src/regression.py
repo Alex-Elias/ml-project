@@ -17,8 +17,6 @@ df_test = df_test.drop('Id', axis=1)
 edf_train, enc = generate_encoding(df_train) 
 edf_test = apply_encoding(df_test, enc)
 
-print(edf_train)
-
 X_train = edf_train.loc[:,edf_train.columns != 'pSat_Pa'].values
 y_train = edf_train.loc[:, 'pSat_Pa'].values
 
