@@ -6,24 +6,30 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import OrdinalEncoder
 from sklearn.metrics import r2_score as R2
+from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
 
-def do_cv(models, X_train, y_train, m_keys):
-    cv_scores = []
+def do_cv(model, X_train, y_train):
+    """ Do 5-fold CV on the given model. Returns the estimator which
+    performed the best. """
 
-    for model in models:
-        """ Perform 5-fold CV for all models in models list. """
-        score = cross_validate(model, 
+    score = cross_validate(model, 
                             X_train, 
                             y_train,
-                            scoring=('r2', 'neg_mean_squared_error'))
-        cv_scores.append(score)
+                            n_jobs=-1,
+                            return_estimator=True,
+                            scoring=('r2'))
+    
+    best_index = np.argmax(score['test_score'])
+    print("Best score = ", score['test_score'][best_index])
+    return score['estimator'][best_index]
 
-    # print models and corresponding r2 scores.
-    for i, model in enumerate(models):
-        print("Model: ", m_keys[i])
-        print("R2 scores: ", cv_scores[i]["test_r2"])
-        print("Average: ", np.mean(cv_scores[i]["test_r2"]))
+
+def normalize_dataset(dataset):
+    scaler = StandardScaler()
+    normalized_data = scaler.fit_transform(dataset)
+    normalized_df = pd.DataFrame(normalized_data, columns=dataset.columns)
+    return normalized_df
 
 def write_to_file(y_test, y_pred, file_name):
     f = open(file_name, 'w')
@@ -35,24 +41,23 @@ def write_to_file(y_test, y_pred, file_name):
 df_train = read_data("train")
 df_test = read_data("test")
 
-df_train = df_train.drop('Id',axis=1)
+df_train = df_train.drop('Id',axis=1)   # remove ID column.
 
-edf_train, enc = generate_encoding(df_train) 
-edf_test = apply_encoding(df_test.drop('Id', axis=1), enc)
+edf_train, enc = generate_encoding(df_train)    # encode the training data.
+edf_test = apply_encoding(df_test.drop('Id', axis=1), enc)  # encode test data with the same encoder.
 
-X_train = edf_train.loc[:,edf_train.columns != 'pSat_Pa']
+X_train = normalize_dataset(edf_train.loc[:,edf_train.columns != 'pSat_Pa'])
 y_train = np.log10(edf_train.loc[:, 'pSat_Pa'])
-y_test = edf_test
+x_test = normalize_dataset(edf_test)
 
 #lr_model = LinearRegression()
 #dr_model = DummyRegressor(strategy='median')
-rf_model = RandomForestRegressor(n_jobs=-1, n_estimators=250, random_state=2)
+rf_model = RandomForestRegressor(n_jobs=-1, n_estimators=1000, random_state=2)
 
 
-#models = [rf_model]
-#m_keys = ['RF']
-#do_cv(models, X_train, y_train, m_keys)
+best_model = do_cv(rf_model, X_train, y_train)
 
-predictor = rf_model.fit(X_train, y_train)
-y_pred = predictor.predict(y_test)
+predictor = best_model.fit(X_train, y_train)
+y_pred = predictor.predict(x_test)
+
 write_to_file(df_test, y_pred, "predictions.csv")
