@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from preprocess import *
 
 # IMPORTS FOR REGRESSION RELATED OPERATIONS
+from sklearn import svm
 from sklearn.model_selection import cross_validate
 from sklearn.dummy import DummyRegressor
 from sklearn.ensemble import RandomForestRegressor
@@ -35,12 +36,19 @@ def normalize_dataset(dataset):
     normalized_df = pd.DataFrame(normalized_data, columns=dataset.columns)
     return normalized_df
 
-def write_to_file(y_test, y_pred, file_name):
+def write_to_file(y_pred, file_name):
     f = open(file_name, 'w')
     f.write("Id,target\n")
-    for i in range(y_test.shape[0]):
+    for i in range(y_pred.shape[0]):
         f.write("{},{}\n".format(df_test.loc[i,"Id"], y_pred[i]))
     f.close()
+
+def sv_regression(x_train, y_train, x_test):
+    regr = svm.SVR(kernel='rbf')
+    estimator = regr.fit(x_train, y_train)
+    y_pred = estimator.predict(x_test)
+    return y_pred
+
 
 df_train = read_data("train")
 df_test = read_data("test")
@@ -54,12 +62,14 @@ X_train = normalize_dataset(edf_train.loc[:,edf_train.columns != 'pSat_Pa'])
 y_train = np.log10(edf_train.loc[:, 'pSat_Pa'])
 X_test = normalize_dataset(edf_test)
 
-RF = RandomForestRegressor(n_jobs=-1, n_estimators=100, random_state=2)
-RF = RF.fit(X_train, y_train)
+#RF = RandomForestRegressor(n_jobs=-1, n_estimators=100, random_state=2)
+#RF = RF.fit(X_train, y_train)
+#
+#model = do_cv(RF, X_train, y_train)
+#model = model.fit(X_train, y_train)
+#
+#y_pred = model.predict(X_test)
 
-model = do_cv(RF, X_train, y_train)
-model = model.fit(X_train, y_train)
+y_pred = sv_regression(X_train, y_train, X_test)
 
-y_pred = model.predict(X_test)
-
-write_to_file(df_test, y_pred, "predictions.csv")
+write_to_file(y_pred, "predictions.csv")
