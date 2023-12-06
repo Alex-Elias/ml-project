@@ -11,7 +11,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import OrdinalEncoder
 from sklearn.metrics import r2_score as R2
 from sklearn.preprocessing import StandardScaler
-from sklearn.feature_selection import SelectFromModel
+from sklearn.feature_selection import SelectFromModel, RFE
 
 def do_cv(model, X_train, y_train):
     """ Do 5-fold CV on the given model. Returns the estimator which
@@ -42,13 +42,29 @@ def write_to_file(y_pred, file_name):
     for i in range(y_pred.shape[0]):
         f.write("{},{}\n".format(df_test.loc[i,"Id"], y_pred[i]))
     f.close()
+    print("Write to file succesful.")
+
+
 
 def sv_regression(x_train, y_train, x_test):
     regr = svm.SVR(kernel='rbf')
     estimator = regr.fit(x_train, y_train)
-    y_pred = estimator.predict(x_test)
+    fse = SelectFromModel(estimator=estimator,
+                          threshold=1e-4,
+                          prefit=True)
+    fse = fse.fit(x_train, y_train)
+    y_pred = fse.estimator_.predict(x_test)
     return y_pred
 
+def rf_regression(x_train, y_train, x_test):
+    regr = RandomForestRegressor(n_estimators=100, n_jobs=-1, random_state=33)
+    estimator = regr.fit(x_train, y_train)
+    print("RFE importances: ", estimator.feature_importances_)
+    fse = SelectFromModel(estimator, threshold=1e-4, prefit=True)
+    xn_train = fse.transform(x_train)
+    fse = fse.fit(xn_train, y_train)
+    y_pred = fse.estimator_.predict(x_test)
+    return y_pred
 
 df_train = read_data("train")
 df_test = read_data("test")
@@ -62,14 +78,9 @@ X_train = normalize_dataset(edf_train.loc[:,edf_train.columns != 'pSat_Pa'])
 y_train = np.log10(edf_train.loc[:, 'pSat_Pa'])
 X_test = normalize_dataset(edf_test)
 
-#RF = RandomForestRegressor(n_jobs=-1, n_estimators=100, random_state=2)
-#RF = RF.fit(X_train, y_train)
-#
-#model = do_cv(RF, X_train, y_train)
-#model = model.fit(X_train, y_train)
-#
-#y_pred = model.predict(X_test)
 
 y_pred = sv_regression(X_train, y_train, X_test)
+#y_pred = rf_regression(X_train.values, y_train.values, X_test.values)
+
 
 write_to_file(y_pred, "predictions.csv")
