@@ -26,9 +26,8 @@ def do_cv(model, X_train, y_train):
                             return_estimator=True,
                             scoring=('r2'))
     
-    best_index = np.argmax(score['test_score'])
-    print("Best score = ", score['test_score'][best_index])
-    return score['estimator'][best_index]
+    print("SCORE = ", np.mean(score['test_score']))
+    
 
 def normalize_dataset(dataset):
     scaler = StandardScaler()
@@ -37,6 +36,9 @@ def normalize_dataset(dataset):
     return normalized_df
 
 def write_to_file(y_pred, file_name):
+    df_test = read_data("test")
+    print("DF_TEST SHAPE: ", df_test.shape)
+    print("Y_PRED SHAPE: ", y_pred.shape)
     f = open(file_name, 'w')
     f.write("Id,target\n")
     for i in range(y_pred.shape[0]):
@@ -44,32 +46,58 @@ def write_to_file(y_pred, file_name):
     f.close()
     print("Write to file succesful.")
 
+def take_outliers(x_train, y_train, y_pred):
+    abs_errors = calc_abs_error(y_pred, y_train)
+    x = range(len(abs_errors))
+    plt.plot(x, abs_errors)
+    plt.show()
 
+    outliers = find_outliers_after_regr(abs_errors, 4)
+
+    x_train_we = drop_rows_by_indexes(x_train, outliers)
+    y_train_we = drop_rows_by_indexes(y_train, outliers)
+
+    return x_train_we, y_train_we
 
 def sv_regression(x_train, y_train, x_test):
-    regr = svm.SVR(kernel='rbf')
+    regr = svm.SVR(C=2.2, kernel='rbf')
     estimator = regr.fit(x_train, y_train)
     fse = SelectFromModel(estimator=estimator,
-                          threshold=1e-4,
+                          threshold=1e-6,
                           prefit=True)
     fse = fse.fit(x_train, y_train)
+    
+    do_cv(fse.estimator_, x_train, y_train)
+
     y_pred = fse.estimator_.predict(x_test)
     return y_pred
 
-def rf_regression(x_train, y_train, x_test):
-    regr = RandomForestRegressor(n_estimators=100, n_jobs=-1, random_state=33)
-    estimator = regr.fit(x_train, y_train)
-    print("RFE importances: ", estimator.feature_importances_)
-    fse = SelectFromModel(estimator, threshold=1e-4, prefit=True)
-    xn_train = fse.transform(x_train)
-    fse = fse.fit(xn_train, y_train)
-    y_pred = fse.estimator_.predict(x_test)
-    return y_pred
+def calc_abs_error(y_pred,y_actual):
+    return np.abs(y_pred-y_actual)
+
+def drop_rows_by_indexes(dataframe, indexes):
+    """
+    Drops rows from the DataFrame based on the given list of indexes.
+    """
+    new_dataframe = dataframe.drop(index=indexes)
+    return new_dataframe
+
+def find_outliers_after_regr(errors,limit):
+    indexes = [index for index, value in enumerate(errors) if value > limit]
+    return indexes
+
 
 df_train = read_data("train")
 df_test = read_data("test")
 
 df_train = df_train.drop('Id',axis=1)   # remove ID column.
+
+# Multiplication of columns
+df_train["MW_NumOfO_NumOfN"] = df_train["MW"] * df_train["NumOfO"]  * df_train["NumOfN"]
+df_test["MW_NumOfO_NumOfN"] = df_test["MW"] * df_test["NumOfO"] * df_test["NumOfN"]
+#df_train["NumOfAtoms_NumOfC"] = df_train["NumOfAtoms"] * df_train["NumOfC"] 
+#df_test["NumOfAtoms_NumOfC"] = df_test["NumOfAtoms"] * df_test["NumOfC"]
+
 
 edf_train, enc = generate_encoding(df_train)    # encode the training data.
 edf_test = apply_encoding(df_test.drop('Id', axis=1), enc)  # encode test data with the same encoder.
@@ -80,7 +108,5 @@ X_test = normalize_dataset(edf_test)
 
 
 y_pred = sv_regression(X_train, y_train, X_test)
-#y_pred = rf_regression(X_train.values, y_train.values, X_test.values)
-
 
 write_to_file(y_pred, "predictions.csv")
