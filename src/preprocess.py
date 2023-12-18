@@ -43,4 +43,3 @@ def read_data(file_name: str) -> pd.DataFrame:
     '''
     dataframe = pd.read_csv("ml-project/data/{}.csv".format(file_name))
     return dataframe
-
